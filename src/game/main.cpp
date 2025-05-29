@@ -1,6 +1,10 @@
 #include <engine/VulkanDevice.h>
 #include <engine/core.h>
 
+#include <thread>
+
+using namespace std::chrono_literals;
+
 static void error_callback(int error, const char *description) {
   SPDLOG_ERROR("GLFW error with code {}: {}", error, description);
 }
@@ -29,16 +33,26 @@ int main(void) {
 
   engine::VulkanDevice device;
   engine::VulkanDevice::Options options = {
-    .app_name = "Game",
-    .request_validation = true,
-    .request_calibrated_timestamps = true,
-    .frames_in_flight = 2,
+      .app_name = "Game",
+      .request_validation = true,
+      .request_calibrated_timestamps = true,
+      .frames_in_flight = 2,
   };
   device.init(window, options);
 
   SPDLOG_INFO("Entering main loop");
+
+  u32 frame_counter = 0;
   while (!glfwWindowShouldClose(window)) {
+    FrameMark;
     glfwPollEvents();
+
+    if (frame_counter == 100) {
+      break;
+    }
+
+    std::this_thread::sleep_for(10ms);
+    ++frame_counter;
   }
   device.deinit();
 }
