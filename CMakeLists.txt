@@ -19,7 +19,8 @@ endif()
 
 set(SOURCE_FILES
     src/game/main.cpp
-    src/engine/VulkanDevice.cpp
+    src/engine/VulkanContext.cpp
+    src/engine/Renderer.cpp
 )
 
 set(COMMON_COMPILE_FLAGS -Wall -Wextra -Wunused-result -Wno-missing-field-initializers -Wno-unused-function -fno-exceptions)

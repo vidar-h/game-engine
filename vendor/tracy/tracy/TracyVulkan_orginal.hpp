@@ -246,92 +246,6 @@ public:
         Profiler::QueueSerialFinish();
     }
 
-#if defined VK_EXT_host_query_reset
-    void Collect()
-    {
-        ZoneScopedC( Color::Red4 );
-
-        const uint64_t head = m_head.load(std::memory_order_relaxed);
-        if( m_tail == head ) return;
-
-#ifdef TRACY_ON_DEMAND
-        if( !GetProfiler().IsConnected() )
-        {
-            VK_FUNCTION_WRAPPER( vkCmdResetQueryPool( cmdbuf, m_query, 0, m_queryCount ) );
-            m_tail = head;
-            m_oldCnt = 0;
-            int64_t tgpu;
-            if( m_timeDomain != VK_TIME_DOMAIN_DEVICE_EXT ) Calibrate( m_device, m_prevCalibration, tgpu );
-            return;
-        }
-#endif
-        assert( head > m_tail );
-
-        const unsigned int wrappedTail = (unsigned int)( m_tail % m_queryCount );
-
-        unsigned int cnt;
-        if( m_oldCnt != 0 )
-        {
-            cnt = m_oldCnt;
-            m_oldCnt = 0;
-        }
-        else
-        {
-            cnt = (unsigned int)( head - m_tail );
-            assert( cnt <= m_queryCount );
-            if( wrappedTail + cnt > m_queryCount )
-            {
-                cnt = m_queryCount - wrappedTail;
-            }
-        }
-
-
-        VK_FUNCTION_WRAPPER( vkGetQueryPoolResults( m_device, m_query, wrappedTail, cnt, sizeof( int64_t ) * m_queryCount * 2, m_res, sizeof( int64_t ) * 2, VK_QUERY_RESULT_64_BIT | VK_QUERY_RESULT_WITH_AVAILABILITY_BIT ) );
-
-        for( unsigned int idx=0; idx<cnt; idx++ )
-        {
-            int64_t avail = m_res[idx * 2 + 1];
-            if( avail == 0 )
-            {
-                m_oldCnt = cnt - idx;
-                cnt = idx;
-
-                break;
-            }
-
-            auto item = Profiler::QueueSerial();
-            MemWrite( &item->hdr.type, QueueType::GpuTime );
-            MemWrite( &item->gpuTime.gpuTime, m_res[idx * 2] );
-            MemWrite( &item->gpuTime.queryId, uint16_t( wrappedTail + idx ) );
-            MemWrite( &item->gpuTime.context, m_context );
-            Profiler::QueueSerialFinish();
-        }
-
-        if( m_timeDomain != VK_TIME_DOMAIN_DEVICE_EXT )
-        {
-            int64_t tgpu, tcpu;
-            Calibrate( m_device, tcpu, tgpu );
-            const auto refCpu = Profiler::GetTime();
-            const auto delta = tcpu - m_prevCalibration;
-            if( delta > 0 )
-            {
-                m_prevCalibration = tcpu;
-                auto item = Profiler::QueueSerial();
-                MemWrite( &item->hdr.type, QueueType::GpuCalibration );
-                MemWrite( &item->gpuCalibration.gpuTime, tgpu );
-                MemWrite( &item->gpuCalibration.cpuTime, refCpu );
-                MemWrite( &item->gpuCalibration.cpuDelta, delta );
-                MemWrite( &item->gpuCalibration.context, m_context );
-                Profiler::QueueSerialFinish();
-            }
-        }
-
-        VK_FUNCTION_WRAPPER( vkResetQueryPool( m_device, m_query, wrappedTail, cnt ) );
-
-        m_tail += cnt;
-    }
-#endif
-
     void Collect( VkCommandBuffer cmdbuf )
     {
         ZoneScopedC( Color::Red4 );
@@ -805,10 +719,6 @@ using TracyVkCtx = tracy::VkCtx*;
 #  define TracyVkZone( ctx, cmdbuf, name ) TracyVkNamedZone( ctx, ___tracy_gpu_zone, cmdbuf, name, true )
 #  define TracyVkZoneC( ctx, cmdbuf, name, color ) TracyVkNamedZoneC( ctx, ___tracy_gpu_zone, cmdbuf, name, color, true )
 #  define TracyVkZoneTransient( ctx, varname, cmdbuf, name, active ) tracy::VkCtxScope varname( ctx, TracyLine, TracyFile, strlen( TracyFile ), TracyFunction, strlen( TracyFunction ), name, strlen( name ), cmdbuf, active );
-#endif
-
-#if defined VK_EXT_host_query_reset
-#define TracyVkCollectHostQueryReset( ctx ) ctx->Collect();
 #endif
 #define TracyVkCollect( ctx, cmdbuf ) ctx->Collect( cmdbuf );
 

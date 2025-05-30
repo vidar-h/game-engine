@@ -1,7 +1,5 @@
-#include <engine/VulkanDevice.h>
+#include <engine/Renderer.h>
 #include <engine/core.h>
-
-#include <thread>
 
 using namespace std::chrono_literals;
 
@@ -18,41 +16,24 @@ int main(void) {
 
   f32 content_x_scale;
   f32 content_y_scale;
-  glfwGetMonitorContentScale(glfwGetPrimaryMonitor(), &content_x_scale,
-                             &content_y_scale);
-  SPDLOG_INFO("Monitor content scale is ({}, {})", content_x_scale,
-              content_y_scale);
+  glfwGetMonitorContentScale(glfwGetPrimaryMonitor(), &content_x_scale, &content_y_scale);
+  SPDLOG_INFO("Monitor content scale is ({}, {})", content_x_scale, content_y_scale);
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
   f32 content_scale = std::max(content_x_scale, content_y_scale);
-  auto window = glfwCreateWindow(1920 / content_scale, 1080 / content_scale,
-                                 "Game", nullptr, nullptr);
+  auto window = glfwCreateWindow(1920 / content_scale, 1080 / content_scale, "Game", nullptr, nullptr);
   if (!window) {
     EG_FATAL("Failed to create glfw window");
   }
 
-  engine::VulkanDevice device;
-  engine::VulkanDevice::Options options = {
-      .app_name = "Game",
-      .request_validation = true,
-      .request_calibrated_timestamps = true,
-      .frames_in_flight = 2,
-  };
-  device.init(window, options);
+  engine::Renderer renderer;
+  renderer.init(window, 2);
 
   SPDLOG_INFO("Entering main loop");
-
-  u32 frame_counter = 0;
   while (!glfwWindowShouldClose(window)) {
     FrameMark;
     glfwPollEvents();
-
-    if (frame_counter == 100) {
-      break;
-    }
-
-    std::this_thread::sleep_for(10ms);
-    ++frame_counter;
+    renderer.render(window);
   }
-  device.deinit();
+  renderer.deinit();
 }
