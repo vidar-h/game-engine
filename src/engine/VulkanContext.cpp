@@ -324,6 +324,10 @@ void VulkanContext::init_swapchain(GLFWwindow *window) {
   auto queues = std::array<u32, 2>{m_graphics_queue_index, m_present_queue_index};
   SPDLOG_INFO("Swapchain queue sharing: {}", vk::to_string(queue_sharing));
 
+  if (caps.maxImageCount == 0) {
+    caps.maxImageCount = std::numeric_limits<u32>::max();
+  }
+
   if (caps.maxImageCount < m_frames_in_flight) {
     SPDLOG_ERROR("Swapchain max image count is smaller than the requested number of frames in flight.");
     SPDLOG_ERROR("Using {} frames in flight instead of {}", caps.maxImageCount, m_frames_in_flight);
@@ -334,23 +338,24 @@ void VulkanContext::init_swapchain(GLFWwindow *window) {
   auto image_formats = std::array<vk::Format, 2>{m_swapchain.format.format, vk::Format::eB8G8R8A8Unorm};
   auto image_format_list_create_info = vk::ImageFormatListCreateInfo().setViewFormats(image_formats);
 
-  auto swapchain_desc = vk::SwapchainCreateInfoKHR()
-                            .setSurface(m_surface)
-                            .setMinImageCount(min_swapchain_images)
-                            .setImageFormat(m_swapchain.format.format)
-                            .setImageColorSpace(m_swapchain.format.colorSpace)
-                            .setImageExtent(m_swapchain.extent)
-                            .setImageArrayLayers(1)
-                            .setImageUsage(vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst)
-                            .setImageSharingMode(queue_sharing)
-                            .setFlags(vk::SwapchainCreateFlagBitsKHR::eMutableFormat)
-                            .setQueueFamilyIndices(queues)
-                            .setPreTransform(vk::SurfaceTransformFlagBitsKHR::eIdentity)
-                            .setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque)
-                            .setPresentMode(m_swapchain.present_mode)
-                            .setClipped(true)
-                            .setPNext(&image_format_list_create_info)
-                            .setOldSwapchain(m_swapchain.swapchain);
+  auto swapchain_desc =
+      vk::SwapchainCreateInfoKHR()
+          .setSurface(m_surface)
+          .setMinImageCount(min_swapchain_images)
+          .setImageFormat(m_swapchain.format.format)
+          .setImageColorSpace(m_swapchain.format.colorSpace)
+          .setImageExtent(m_swapchain.extent)
+          .setImageArrayLayers(1)
+          .setImageUsage(vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eTransferDst)
+          .setImageSharingMode(queue_sharing)
+          .setFlags(vk::SwapchainCreateFlagBitsKHR::eMutableFormat)
+          .setQueueFamilyIndices(queues)
+          .setPreTransform(vk::SurfaceTransformFlagBitsKHR::eIdentity)
+          .setCompositeAlpha(vk::CompositeAlphaFlagBitsKHR::eOpaque)
+          .setPresentMode(m_swapchain.present_mode)
+          .setClipped(true)
+          .setPNext(&image_format_list_create_info)
+          .setOldSwapchain(m_swapchain.swapchain);
 
   auto new_swapchain = VK_CHECK(m_device.createSwapchainKHR(swapchain_desc));
   destroy_swapchain();
