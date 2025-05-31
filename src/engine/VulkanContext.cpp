@@ -284,7 +284,7 @@ void VulkanContext::present(GLFWwindow *window, vk::CommandBuffer cmd) {
                             .setWaitSemaphores(m_submit_semaphores[m_swapchain.image_index])
                             .setSwapchains(m_swapchain.swapchain)
                             .setImageIndices(m_swapchain.image_index);
-    auto present_result = m_present_queue.presentKHR(present_info);
+    auto present_result = m_present_queue.presentKHR(&present_info);
     if (present_result == vk::Result::eSuboptimalKHR || present_result == vk::Result::eErrorOutOfDateKHR) {
       SPDLOG_WARN("Swapchain in suboptimal/out-of-date state during presentaiton. Recreating.");
       init_swapchain(window);
@@ -398,6 +398,8 @@ void VulkanContext::destroy_swapchain() {
     m_device.destroyImageView(m_swapchain.srgb_views[i]);
     m_device.destroyImageView(m_swapchain.linear_views[i]);
   }
+  m_swapchain.linear_views.clear();
+  m_swapchain.srgb_views.clear();
 
   // This is technically wrong since it does not guarantee that presentation operations are finished
   // but currently there is no better way of doing it without the VK_EXT_swapchain_maintenance1 extension.
